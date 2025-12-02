@@ -35,11 +35,12 @@ class HGEZLPFCR_Pro_License_Manager {
 	 * Suspension reason labels (Romanian)
 	 */
 	const SUSPENSION_REASONS = [
-		'payment_failed'   => 'Plata a eșuat',
-		'expired'          => 'Licența a expirat',
-		'terms_violation'  => 'Încălcare termeni de utilizare',
-		'requested'        => 'La cererea clientului',
-		'other'            => 'Alt motiv',
+		'payment_failed'    => 'Plata a eșuat',
+		'expired'           => 'Licența a expirat',
+		'terms_violation'   => 'Încălcare termeni de utilizare',
+		'requested'         => 'La cererea clientului',
+		'site_deactivated'  => 'Site-ul a fost dezactivat de administrator',
+		'other'             => 'Alt motiv',
 	];
 
 	/**
@@ -130,6 +131,30 @@ class HGEZLPFCR_Pro_License_Manager {
 			return new \WP_REST_Response([
 				'success' => true,
 				'message' => 'License status updated',
+			], 200);
+		}
+
+		// Handle activation deactivated (site removed from allowed activations)
+		if ($payload['action'] === 'activation_deactivated') {
+			// Deactivate license locally
+			update_option('hgezlpfcr_pro_license_status', 'inactive');
+
+			// Store deactivation details
+			$license_data = get_option('hgezlpfcr_pro_license_data', []);
+			$license_data['status'] = 'deactivated';
+			$license_data['suspension_reason'] = 'site_deactivated';
+			$license_data['suspension_note'] = $payload['message'] ?? 'Site activation removed by administrator.';
+			$license_data['deactivated_at'] = $payload['timestamp'] ?? current_time('mysql');
+			update_option('hgezlpfcr_pro_license_data', $license_data);
+
+			// Clear cache
+			delete_transient('hgezlpfcr_pro_license_check');
+
+			HGEZLPFCR_Logger::log('Site activation deactivated via webhook', $payload);
+
+			return new \WP_REST_Response([
+				'success' => true,
+				'message' => 'Activation deactivated',
 			], 200);
 		}
 
