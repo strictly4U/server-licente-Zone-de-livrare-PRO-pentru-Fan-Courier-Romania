@@ -32,6 +32,17 @@ class HGEZLPFCR_Pro_License_Manager {
 	const CACHE_DURATION = 12 * HOUR_IN_SECONDS;
 
 	/**
+	 * Suspension reason labels (Romanian)
+	 */
+	const SUSPENSION_REASONS = [
+		'payment_failed'   => 'Plata a eșuat',
+		'expired'          => 'Licența a expirat',
+		'terms_violation'  => 'Încălcare termeni de utilizare',
+		'requested'        => 'La cererea clientului',
+		'other'            => 'Alt motiv',
+	];
+
+	/**
 	 * Initialize License Manager
 	 */
 	public static function init() {
@@ -49,7 +60,80 @@ class HGEZLPFCR_Pro_License_Manager {
 		add_action('wp_ajax_hgezlpfcr_pro_deactivate_license', [__CLASS__, 'ajax_deactivate_license']);
 		add_action('wp_ajax_hgezlpfcr_pro_check_license', [__CLASS__, 'ajax_check_license']);
 
+		// REST API webhook endpoint
+		add_action('rest_api_init', [__CLASS__, 'register_webhook_endpoint']);
+
 		HGEZLPFCR_Logger::log('PRO License Manager initialized');
+	}
+
+	/**
+	 * Register REST API webhook endpoint
+	 */
+	public static function register_webhook_endpoint() {
+		register_rest_route('hgezlpfcr-pro/v1', '/license-webhook', [
+			'methods'             => 'POST',
+			'callback'            => [__CLASS__, 'handle_license_webhook'],
+			'permission_callback' => '__return_true', // Public endpoint, validated by license_key
+		]);
+	}
+
+	/**
+	 * Handle incoming license webhook from server
+	 */
+	public static function handle_license_webhook(\WP_REST_Request $request) {
+		$payload = $request->get_json_params();
+
+		// Validate webhook header
+		$webhook_header = $request->get_header('X-License-Webhook');
+		if ($webhook_header !== 'true') {
+			return new \WP_REST_Response(['success' => false, 'message' => 'Invalid webhook'], 401);
+		}
+
+		// Validate required fields
+		if (empty($payload['action']) || empty($payload['license_key'])) {
+			return new \WP_REST_Response(['success' => false, 'message' => 'Missing required fields'], 400);
+		}
+
+		// Check if this webhook is for our license
+		$stored_license_key = get_option('hgezlpfcr_pro_license_key', '');
+		if ($payload['license_key'] !== $stored_license_key) {
+			return new \WP_REST_Response(['success' => false, 'message' => 'License key mismatch'], 403);
+		}
+
+		HGEZLPFCR_Logger::log('License webhook received', $payload);
+
+		// Handle the action
+		if ($payload['action'] === 'license_status_changed') {
+			$status = $payload['status'] ?? 'suspended';
+			$reason = $payload['suspension_reason'] ?? null;
+			$note = $payload['suspension_note'] ?? null;
+
+			// Update local license status
+			update_option('hgezlpfcr_pro_license_status', $status === 'active' ? 'active' : 'inactive');
+
+			// Store suspension details
+			$license_data = get_option('hgezlpfcr_pro_license_data', []);
+			$license_data['status'] = $status;
+			$license_data['suspension_reason'] = $reason;
+			$license_data['suspension_note'] = $note;
+			$license_data['suspended_at'] = $payload['timestamp'] ?? current_time('mysql');
+			update_option('hgezlpfcr_pro_license_data', $license_data);
+
+			// Clear cache to force immediate update
+			delete_transient('hgezlpfcr_pro_license_check');
+
+			HGEZLPFCR_Logger::log('License status updated via webhook', [
+				'status' => $status,
+				'reason' => $reason,
+			]);
+
+			return new \WP_REST_Response([
+				'success' => true,
+				'message' => 'License status updated',
+			], 200);
+		}
+
+		return new \WP_REST_Response(['success' => false, 'message' => 'Unknown action'], 400);
 	}
 
 	/**
@@ -553,16 +637,38 @@ class HGEZLPFCR_Pro_License_Manager {
 		}
 
 		$license_status = get_option('hgezlpfcr_pro_license_status', 'inactive');
+		$license_data = get_option('hgezlpfcr_pro_license_data', []);
 
 		if ($license_status !== 'active') {
+			// Check for suspension reason
+			$suspension_reason = $license_data['suspension_reason'] ?? null;
+			$suspension_note = $license_data['suspension_note'] ?? null;
+			$reason_label = $suspension_reason ? (self::SUSPENSION_REASONS[$suspension_reason] ?? $suspension_reason) : null;
 			?>
-			<div class="notice notice-warning is-dismissible">
+			<div class="notice notice-error is-dismissible">
 				<p>
 					<strong><?php esc_html_e('HgE PRO License:', 'hge-zone-de-livrare-pentru-fan-courier-romania-pro'); ?></strong>
-					<?php esc_html_e('Your license is inactive. PRO features are limited.', 'hge-zone-de-livrare-pentru-fan-courier-romania-pro'); ?>
-					<a href="<?php echo esc_url(admin_url('admin.php?page=hgezlpfcr-pro-license')); ?>" class="button button-primary" style="margin-left: 10px;">
-						<?php esc_html_e('Activate License', 'hge-zone-de-livrare-pentru-fan-courier-romania-pro'); ?>
+					<?php if ($suspension_reason): ?>
+						<?php esc_html_e('Your license has been suspended.', 'hge-zone-de-livrare-pentru-fan-courier-romania-pro'); ?>
+						<br>
+						<strong><?php esc_html_e('Motiv:', 'hge-zone-de-livrare-pentru-fan-courier-romania-pro'); ?></strong>
+						<?php echo esc_html($reason_label); ?>
+						<?php if ($suspension_note): ?>
+							<br><em><?php echo esc_html($suspension_note); ?></em>
+						<?php endif; ?>
+					<?php else: ?>
+						<?php esc_html_e('Your license is inactive. PRO features are limited.', 'hge-zone-de-livrare-pentru-fan-courier-romania-pro'); ?>
+					<?php endif; ?>
+				</p>
+				<p>
+					<a href="<?php echo esc_url(admin_url('admin.php?page=hgezlpfcr-pro-license')); ?>" class="button button-primary">
+						<?php esc_html_e('View License', 'hge-zone-de-livrare-pentru-fan-courier-romania-pro'); ?>
 					</a>
+					<?php if ($suspension_reason === 'payment_failed'): ?>
+						<a href="https://web-production-c8792.up.railway.app/checkout.html" target="_blank" class="button button-secondary" style="margin-left: 5px;">
+							<?php esc_html_e('Update Payment', 'hge-zone-de-livrare-pentru-fan-courier-romania-pro'); ?>
+						</a>
+					<?php endif; ?>
 				</p>
 			</div>
 			<?php
@@ -570,7 +676,6 @@ class HGEZLPFCR_Pro_License_Manager {
 		}
 
 		// Check expiry warning (30 days)
-		$license_data = get_option('hgezlpfcr_pro_license_data', []);
 		$expires_at = $license_data['expires_at'] ?? null;
 
 		if ($expires_at) {
