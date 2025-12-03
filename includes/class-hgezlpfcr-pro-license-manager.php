@@ -33,7 +33,8 @@ class HGEZLPFCR_Pro_License_Manager {
 
 	/**
 	 * Webhook secret option name
-	 * Set this in wp-config.php: define('HGEZLPFCR_WEBHOOK_SECRET', 'your-32-char-secret');
+	 * Automatically obtained from server during license activation.
+	 * Can also be set manually in wp-config.php: define('HGEZLPFCR_WEBHOOK_SECRET', 'your-32-char-secret');
 	 */
 	const WEBHOOK_SECRET_OPTION = 'hgezlpfcr_pro_webhook_secret';
 
@@ -570,6 +571,12 @@ class HGEZLPFCR_Pro_License_Manager {
 		update_option('hgezlpfcr_pro_license_data', $body['license_data'] ?? []);
 		delete_transient('hgezlpfcr_pro_license_check');
 
+		// Save webhook secret if returned from server
+		if (!empty($body['license_data']['webhook_secret'])) {
+			update_option(self::WEBHOOK_SECRET_OPTION, $body['license_data']['webhook_secret']);
+			HGEZLPFCR_Logger::log('Webhook secret saved from server');
+		}
+
 		HGEZLPFCR_Logger::log('License activated successfully', ['license_key' => substr($license_key, 0, 8) . '...']);
 
 		return true;
@@ -601,6 +608,7 @@ class HGEZLPFCR_Pro_License_Manager {
 		delete_option('hgezlpfcr_pro_license_key');
 		update_option('hgezlpfcr_pro_license_status', 'inactive');
 		delete_option('hgezlpfcr_pro_license_data');
+		delete_option(self::WEBHOOK_SECRET_OPTION); // Clear webhook secret
 		delete_transient('hgezlpfcr_pro_license_check');
 
 		HGEZLPFCR_Logger::log('License deactivated');
