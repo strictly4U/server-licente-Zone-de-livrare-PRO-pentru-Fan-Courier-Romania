@@ -405,23 +405,43 @@ class HGEZLPFCR_Pro_Settings {
             $('#hgezlpfcr-activate-form').on('submit', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
+
                 var $btn = $('#activate-license-btn');
                 var $msg = $('#license-response-message');
                 var licenseKey = $('#license_key').val();
+                var nonce = $('#hgezlpfcr-activate-form input[name="hgezlpfcr_pro_nonce"]').val();
+
+                console.log('License activation started', {licenseKey: licenseKey, nonce: nonce, ajaxurl: ajaxurl});
+
+                if (!licenseKey) {
+                    $msg.html('<div class="notice notice-error inline"><p>Please enter a license key</p></div>').show();
+                    return;
+                }
 
                 $btn.prop('disabled', true).text('<?php esc_html_e('Activating...', 'hge-zone-de-livrare-pentru-fan-courier-romania-pro'); ?>');
                 $msg.hide();
 
-                $.post(ajaxurl, {
-                    action: 'hgezlpfcr_pro_activate_license',
-                    nonce: $('input[name="hgezlpfcr_pro_nonce"]').val(),
-                    license_key: licenseKey
-                }, function(response) {
-                    if (response.success) {
-                        $msg.html('<div class="notice notice-success inline"><p>' + response.data.message + '</p></div>').show();
-                        setTimeout(function() { location.reload(); }, 1500);
-                    } else {
-                        $msg.html('<div class="notice notice-error inline"><p>' + response.data.message + '</p></div>').show();
+                $.ajax({
+                    url: ajaxurl,
+                    type: 'POST',
+                    data: {
+                        action: 'hgezlpfcr_pro_activate_license',
+                        nonce: nonce,
+                        license_key: licenseKey
+                    },
+                    success: function(response) {
+                        console.log('License response:', response);
+                        if (response.success) {
+                            $msg.html('<div class="notice notice-success inline"><p>' + response.data.message + '</p></div>').show();
+                            setTimeout(function() { location.reload(); }, 1500);
+                        } else {
+                            $msg.html('<div class="notice notice-error inline"><p>' + (response.data ? response.data.message : 'Unknown error') + '</p></div>').show();
+                            $btn.prop('disabled', false).text('<?php esc_html_e('Activate License', 'hge-zone-de-livrare-pentru-fan-courier-romania-pro'); ?>');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('License AJAX error:', {status: status, error: error, response: xhr.responseText});
+                        $msg.html('<div class="notice notice-error inline"><p>AJAX Error: ' + error + '</p></div>').show();
                         $btn.prop('disabled', false).text('<?php esc_html_e('Activate License', 'hge-zone-de-livrare-pentru-fan-courier-romania-pro'); ?>');
                     }
                 });
