@@ -390,12 +390,24 @@ class HGEZLPFCR_Pro_Settings {
 
         <script>
         jQuery(document).ready(function($) {
+            // Hide WooCommerce Save Changes button on license page (not needed)
+            $('p.submit').hide();
+
+            // Prevent WooCommerce "unsaved changes" warning for license fields
+            $('#license_key').on('change input', function(e) {
+                e.stopPropagation();
+                // Reset WooCommerce's change tracking
+                window.onbeforeunload = null;
+                $(window).off('beforeunload');
+            });
+
             // Activate License
             $('#hgezlpfcr-activate-form').on('submit', function(e) {
                 e.preventDefault();
+                e.stopPropagation();
                 var $btn = $('#activate-license-btn');
                 var $msg = $('#license-response-message');
-                var licenseKey = $('input[name="license_key"]').val();
+                var licenseKey = $('#license_key').val();
 
                 $btn.prop('disabled', true).text('<?php esc_html_e('Activating...', 'hge-zone-de-livrare-pentru-fan-courier-romania-pro'); ?>');
                 $msg.hide();
@@ -418,6 +430,7 @@ class HGEZLPFCR_Pro_Settings {
             // Deactivate License
             $('#hgezlpfcr-deactivate-form').on('submit', function(e) {
                 e.preventDefault();
+                e.stopPropagation();
                 if (!confirm('<?php esc_html_e('Are you sure you want to deactivate this license?', 'hge-zone-de-livrare-pentru-fan-courier-romania-pro'); ?>')) return;
 
                 var $btn = $('#deactivate-license-btn');
