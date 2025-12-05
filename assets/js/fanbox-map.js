@@ -74,6 +74,13 @@
 				self.checkShippingMethod();
 			});
 
+			// Map button click - use event delegation for dynamic elements
+			$(document).on('click', '#hgezlpfcr-pro-fanbox-map-btn', function(e) {
+				e.preventDefault();
+				console.log('[FANBox] Map button clicked');
+				self.openMap();
+			});
+
 			// Listen for map selection events from external library
 			window.addEventListener('map:select-point', function(event) {
 				self.onFanboxSelected(event.detail.item);
@@ -147,11 +154,7 @@
 
 			console.log('[FANBox] Selector row added');
 
-			// Bind map button click
-			$('#hgezlpfcr-pro-fanbox-map-btn').on('click', function(e) {
-				e.preventDefault();
-				self.openMap();
-			});
+			// Click handler is bound via event delegation in bindEvents()
 
 			// Show saved selection
 			this.displaySavedSelection();

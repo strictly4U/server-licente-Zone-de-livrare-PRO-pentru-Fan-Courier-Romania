@@ -103,9 +103,11 @@ class HGEZLPFCR_Pro_Fanbox_Selector {
 			],
 		]);
 
-		HGEZLPFCR_Logger::log('FANBox selector assets enqueued', [
-			'page'    => is_checkout() ? 'checkout' : 'cart',
-			'enabled' => 'yes',
-		]);
+		if (class_exists('HGEZLPFCR_Logger')) {
+			HGEZLPFCR_Logger::log('FANBox selector assets enqueued', [
+				'page'    => is_checkout() ? 'checkout' : 'cart',
+				'enabled' => 'yes',
+			]);
+		}
 	}
 }
