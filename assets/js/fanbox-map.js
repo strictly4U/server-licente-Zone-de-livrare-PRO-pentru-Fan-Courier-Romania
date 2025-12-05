@@ -127,7 +127,7 @@
 			var self = this;
 
 			// Remove existing selector
-			$('.hgezlpfcr-pro-fanbox-row').remove();
+			$('.hgezlpfcr-pro-fanbox-row, .hgezlpfcr-pro-fanbox-li').remove();
 
 			// Find insertion point
 			var $insertionPoint = this.findInsertionPoint();
@@ -137,22 +137,35 @@
 				return;
 			}
 
-			// Create FANBox selector row
-			var $fanboxRow = $('<tr class="hgezlpfcr-pro-fanbox-row hgezlpfcr-pro-pickup-selector">')
-				.append($('<th>')
-					.append($('<button type="button" class="button alt wp-element-button" id="hgezlpfcr-pro-fanbox-map-btn">')
+			var $fanboxElement;
+
+			if (this.layoutType === 'list') {
+				// Create list item for ul-based layouts
+				$fanboxElement = $('<li class="hgezlpfcr-pro-fanbox-li hgezlpfcr-pro-pickup-selector" style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 4px;">')
+					.append($('<button type="button" class="button alt wp-element-button" id="hgezlpfcr-pro-fanbox-map-btn" style="margin-right: 10px;">')
 						.text(hgezlpfcrProFanbox.i18n.mapButtonText)
 					)
-				)
-				.append($('<td>')
 					.append($('<strong>')
-						.append($('<span id="hgezlpfcr-pro-fanbox-details">'))
+						.append($('<span id="hgezlpfcr-pro-fanbox-details" style="color: #155724;">'))
+					);
+			} else {
+				// Create table row for table-based layouts
+				$fanboxElement = $('<tr class="hgezlpfcr-pro-fanbox-row hgezlpfcr-pro-pickup-selector">')
+					.append($('<th>')
+						.append($('<button type="button" class="button alt wp-element-button" id="hgezlpfcr-pro-fanbox-map-btn">')
+							.text(hgezlpfcrProFanbox.i18n.mapButtonText)
+						)
 					)
-				);
+					.append($('<td>')
+						.append($('<strong>')
+							.append($('<span id="hgezlpfcr-pro-fanbox-details">'))
+						)
+					);
+			}
 
-			$insertionPoint.after($fanboxRow);
+			$insertionPoint.after($fanboxElement);
 
-			console.log('[FANBox] Selector row added');
+			console.log('[FANBox] Selector added, layout type:', this.layoutType);
 
 			// Click handler is bound via event delegation in bindEvents()
 
@@ -167,7 +180,7 @@
 		 * Hide FANBox selector
 		 */
 		hideFanboxSelector: function() {
-			$('.hgezlpfcr-pro-fanbox-row').remove();
+			$('.hgezlpfcr-pro-fanbox-row, .hgezlpfcr-pro-fanbox-li').remove();
 			this.clearCookies();
 		},
 
@@ -176,7 +189,8 @@
 		 */
 		findInsertionPoint: function() {
 			// Try multiple selectors for different themes and layouts
-			var selectors = [
+			// First try table-based layouts
+			var tableSelectors = [
 				'.woocommerce-shipping-totals tr:last-child',
 				'.shop_table tfoot tr:last-child',
 				'#shipping_method tr:last-child',
@@ -185,10 +199,26 @@
 				'.cart_totals table tbody tr:last-child'
 			];
 
-			for (var i = 0; i < selectors.length; i++) {
-				var $point = $(selectors[i]);
+			for (var i = 0; i < tableSelectors.length; i++) {
+				var $point = $(tableSelectors[i]);
 				if ($point.length) {
+					this.layoutType = 'table';
 					return $point;
+				}
+			}
+
+			// Try list-based layouts (ul#shipping_method)
+			var listSelectors = [
+				'#shipping_method li:last-child',
+				'ul.woocommerce-shipping-methods li:last-child',
+				'.shipping-methods li:last-child'
+			];
+
+			for (var j = 0; j < listSelectors.length; j++) {
+				var $listPoint = $(listSelectors[j]);
+				if ($listPoint.length) {
+					this.layoutType = 'list';
+					return $listPoint;
 				}
 			}
 
