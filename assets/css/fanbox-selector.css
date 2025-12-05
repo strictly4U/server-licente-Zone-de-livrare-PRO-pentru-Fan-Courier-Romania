@@ -63,14 +63,9 @@
 }
 
 /* FANBox map container (provided by external library) */
+/* Note: The external library handles showing/hiding the modal */
 #FANmapDiv {
-	display: none; /* Hidden until map is opened */
-	position: fixed;
-	top: 0;
-	left: 0;
-	width: 100%;
-	height: 100%;
-	z-index: 999999;
+	/* Container styles are managed by the external library */
 }
 
 /* Admin order FANBox info */
