@@ -107,8 +107,10 @@
 			if (isFanboxMethod) {
 				this.showFanboxSelector();
 				this.updateShippingDestination();
+				this.hideShippingAddressFields();
 			} else {
 				this.hideFanboxSelector();
+				this.showShippingAddressFields();
 			}
 		},
 
@@ -182,6 +184,45 @@
 		hideFanboxSelector: function() {
 			$('.hgezlpfcr-pro-fanbox-row, .hgezlpfcr-pro-fanbox-li').remove();
 			this.clearCookies();
+		},
+
+		/**
+		 * Hide shipping address fields when FANBox is selected
+		 */
+		hideShippingAddressFields: function() {
+			// Add info message if not exists
+			if (!$('#hgezlpfcr-fanbox-shipping-notice').length) {
+				var noticeHtml = '<div id="hgezlpfcr-fanbox-shipping-notice" class="woocommerce-info" style="margin-bottom: 20px; background: #d4edda; border-color: #c3e6cb; color: #155724;">' +
+					'<strong>📦 ' + hgezlpfcrProFanbox.i18n.deliveryTo + ' FANBox</strong><br>' +
+					'<span style="font-size: 13px;">' + hgezlpfcrProFanbox.i18n.chooseFromMap + '</span>' +
+					'</div>';
+
+				// Insert before shipping fields
+				$('.woocommerce-shipping-fields, #ship-to-different-address').before(noticeHtml);
+			}
+
+			// Hide the "Ship to different address" checkbox and shipping fields
+			$('#ship-to-different-address').addClass('hgezlpfcr-hidden-for-fanbox').hide();
+			$('.woocommerce-shipping-fields__field-wrapper, .shipping_address').addClass('hgezlpfcr-hidden-for-fanbox').hide();
+
+			// Uncheck "ship to different address" to use billing as base
+			$('#ship-to-different-address-checkbox').prop('checked', false).trigger('change');
+
+			console.log('[FANBox] Shipping address fields hidden');
+		},
+
+		/**
+		 * Show shipping address fields when non-FANBox method is selected
+		 */
+		showShippingAddressFields: function() {
+			// Remove FANBox notice
+			$('#hgezlpfcr-fanbox-shipping-notice').remove();
+
+			// Show shipping fields
+			$('#ship-to-different-address').removeClass('hgezlpfcr-hidden-for-fanbox').show();
+			$('.woocommerce-shipping-fields__field-wrapper, .shipping_address').removeClass('hgezlpfcr-hidden-for-fanbox').show();
+
+			console.log('[FANBox] Shipping address fields restored');
 		},
 
 		/**

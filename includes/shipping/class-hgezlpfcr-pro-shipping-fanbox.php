@@ -173,17 +173,36 @@ class HGEZLPFCR_Pro_Shipping_Fanbox extends HGEZLPFCR_Pro_Shipping_Base {
 				$fanbox_address = isset($_COOKIE['hgezlpfcr_pro_fanbox_address']) ? sanitize_text_field(wp_unslash($_COOKIE['hgezlpfcr_pro_fanbox_address'])) : '';
 
 				if (!empty($fanbox_name)) {
+					$decoded_name = urldecode($fanbox_name);
+
 					// Save FANBox information to order meta
-					$order->add_meta_data('_hgezlpfcr_pro_fanbox_name', urldecode($fanbox_name));
+					$order->add_meta_data('_hgezlpfcr_pro_fanbox_name', $decoded_name);
+
+					$county = '';
+					$locality = '';
 
 					if (!empty($fanbox_address)) {
 						$address_parts = explode('|', urldecode($fanbox_address));
 						if (count($address_parts) === 2) {
-							$order->add_meta_data('_hgezlpfcr_pro_fanbox_address', $address_parts[1] . ', ' . $address_parts[0]);
-							$order->add_meta_data('_hgezlpfcr_pro_fanbox_county', $address_parts[0]);
-							$order->add_meta_data('_hgezlpfcr_pro_fanbox_locality', $address_parts[1]);
+							$county = $address_parts[0];
+							$locality = $address_parts[1];
+							$order->add_meta_data('_hgezlpfcr_pro_fanbox_address', $locality . ', ' . $county);
+							$order->add_meta_data('_hgezlpfcr_pro_fanbox_county', $county);
+							$order->add_meta_data('_hgezlpfcr_pro_fanbox_locality', $locality);
 						}
 					}
+
+					// Override shipping address with FANBox location
+					$order->set_shipping_company('FANBox: ' . $decoded_name);
+					$order->set_shipping_address_1('Ridicare din locker FANBox');
+					$order->set_shipping_address_2($decoded_name);
+					if ($locality) {
+						$order->set_shipping_city($locality);
+					}
+					if ($county) {
+						$order->set_shipping_state($county);
+					}
+					$order->set_shipping_postcode('');
 
 					$order->save();
 
